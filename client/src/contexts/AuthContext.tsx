@@ -1,0 +1,8 @@
+/** OfficeFlow authentication context: exposes development-local sessions now while keeping provider mechanics isolated for production replacement. */
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { authProvider, type AuthUser } from "@/lib/auth";
+
+type AuthContextValue = { user: AuthUser | null; ready: boolean; register: (name: string, email: string, password: string) => Promise<AuthUser>; signIn: (email: string, password: string, remember: boolean) => Promise<AuthUser>; signOut: () => Promise<void>; requestPasswordReset: (email: string) => Promise<string>; };
+const AuthContext = createContext<AuthContextValue | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) { const [user, setUser] = useState<AuthUser | null>(null); const [ready, setReady] = useState(false); useEffect(() => { authProvider.currentUser().then(setUser).finally(() => setReady(true)); }, []); const value = useMemo<AuthContextValue>(() => ({ user, ready, register: async (name, email, password) => { const account = await authProvider.register(name, email, password); setUser(account); return account; }, signIn: async (email, password, remember) => { const account = await authProvider.signIn(email, password, remember); setUser(account); return account; }, signOut: async () => { await authProvider.signOut(); setUser(null); }, requestPasswordReset: authProvider.requestPasswordReset }), [user, ready]); return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>; }
+export function useAuth() { const context = useContext(AuthContext); if (!context) throw new Error("useAuth must be used inside AuthProvider"); return context; }
